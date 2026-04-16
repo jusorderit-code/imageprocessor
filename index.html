@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImageProcessor Studio</title>
+  <meta name="description" content="A clean upload-first workspace for image, PDF, and document tools." />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js" defer></script>
+  <script src="assets/js/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-mark">IP</div>
+      <div>
+        <h1>ImageProcessor Studio</h1>
+        <p>Upload a file. Pick one tool. Finish the job fast.</p>
+      </div>
+    </div>
+    <div class="topbar-badges">
+      <span class="badge badge-live">Frontend MVP</span>
+      <span class="badge">Upload-first workflow</span>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <h2>One place for image, PDF, and document tasks</h2>
+        <p>
+          This interface is designed for people who do not want to hunt through menus.
+          Every action is separated into a single tool so users can upload a file and do one job at a time.
+        </p>
+        <div class="hero-pills">
+          <span>Compress images</span>
+          <span>Convert formats</span>
+          <span>Edit images</span>
+          <span>Remove PDF pages</span>
+          <span>Document conversion flow</span>
+        </div>
+      </div>
+      <div class="hero-card">
+        <h3>What works in this MVP</h3>
+        <ul>
+          <li>Image compression by size and quality</li>
+          <li>Raster image conversion between PNG, JPEG, and WebP</li>
+          <li>Basic image editing in-browser</li>
+          <li>PDF page removal in-browser</li>
+        </ul>
+        <p class="hero-note">
+          Advanced PDF text editing, DOCX/PDF conversion, and EPS conversion are scaffolded in the UI but need a backend.
+        </p>
+      </div>
+    </section>
+
+    <section class="workspace-layout">
+      <aside class="tool-sidebar">
+        <div class="sidebar-header">
+          <h3>Tool menu</h3>
+          <p>Each option opens one focused workflow.</p>
+        </div>
+
+        <div class="tool-group">
+          <p class="tool-group-title">Image tools</p>
+          <button class="tool-button active" data-tool="image-compress">Compress Image</button>
+          <button class="tool-button" data-tool="image-convert">Convert Image</button>
+          <button class="tool-button" data-tool="image-edit">Edit Image</button>
+          <button class="tool-button" data-tool="eps-convert">EPS / PDF / PNG</button>
+        </div>
+
+        <div class="tool-group">
+          <p class="tool-group-title">PDF tools</p>
+          <button class="tool-button" data-tool="pdf-remove-pages">Remove PDF Pages</button>
+          <button class="tool-button" data-tool="pdf-edit">Edit PDF Text</button>
+        </div>
+
+        <div class="tool-group">
+          <p class="tool-group-title">Document tools</p>
+          <button class="tool-button" data-tool="docx-to-pdf">DOCX to PDF</button>
+          <button class="tool-button" data-tool="pdf-to-docx">PDF to DOCX</button>
+        </div>
+      </aside>
+
+      <section class="tool-workspace">
+        <div class="workspace-header">
+          <div>
+            <p class="workspace-kicker">Selected tool</p>
+            <h3 id="tool-title">Compress Image</h3>
+          </div>
+          <div id="tool-status" class="status-chip">Ready</div>
+        </div>
+
+        <p id="tool-description" class="tool-description">
+          Upload an image, choose output format and quality, and download a compressed copy.
+        </p>
+
+        <div id="tool-body" class="tool-body"></div>
+      </section>
+    </section>
+
+    <section class="backend-plan">
+      <h3>Next backend layer to make this production-ready</h3>
+      <div class="backend-grid">
+        <article>
+          <h4>Image backend</h4>
+          <p>Use Sharp or ImageMagick for high-quality resizing, compression, and reliable format conversion.</p>
+        </article>
+        <article>
+          <h4>PDF backend</h4>
+          <p>Use qpdf, pdfcpu, or Ghostscript for page operations. Use a dedicated PDF editor pipeline for real text edits.</p>
+        </article>
+        <article>
+          <h4>Document backend</h4>
+          <p>Use LibreOffice headless for DOCX ↔ PDF conversion. Do not fake this in-browser because it breaks formatting.</p>
+        </article>
+        <article>
+          <h4>EPS support</h4>
+          <p>Use Ghostscript for EPS ↔ PDF and EPS → PNG conversion. Browser-only support here is weak and unreliable.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
