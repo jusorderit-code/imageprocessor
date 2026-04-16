@@ -2,64 +2,109 @@ const toolTitle = document.getElementById('tool-title');
 const toolDescription = document.getElementById('tool-description');
 const toolBody = document.getElementById('tool-body');
 const toolStatus = document.getElementById('tool-status');
+const toolMode = document.getElementById('tool-mode');
+const toolSearch = document.getElementById('tool-search');
 const toolButtons = [...document.querySelectorAll('.tool-button')];
 
 const tools = {
   'image-compress': {
     title: 'Compress Image',
-    description: 'Upload an image, adjust quality and width, then export a smaller PNG, JPEG, or WebP copy.',
+    description: 'Upload an image, choose target width and quality, and download a smaller PNG, JPEG, or WebP copy.',
+    mode: 'local',
     render: renderImageCompress,
   },
   'image-convert': {
     title: 'Convert Image',
-    description: 'Convert raster images between PNG, JPEG, and WebP with a simple upload-first flow.',
+    description: 'Convert raster images between PNG, JPEG, and WebP directly in the browser.',
+    mode: 'local',
     render: renderImageConvert,
   },
   'image-edit': {
     title: 'Edit Image',
-    description: 'Use a lightweight in-browser editor for rotation, mirroring, grayscale, and brightness changes.',
+    description: 'Use a lightweight local editor for rotate, flip, grayscale, brightness, and contrast.',
+    mode: 'local',
     render: renderImageEdit,
   },
-  'eps-convert': {
-    title: 'EPS / PDF / PNG',
-    description: 'This tool is scaffolded in the interface, but reliable EPS conversion should run on the backend using Ghostscript.',
-    render: renderEPSPlaceholder,
+  'images-to-pdf': {
+    title: 'Images to PDF',
+    description: 'Upload multiple images and export them into a single PDF without a server.',
+    mode: 'local',
+    render: renderImagesToPdf,
   },
   'pdf-remove-pages': {
     title: 'Remove PDF Pages',
-    description: 'Upload a PDF and remove page numbers like 1,3-5,8 directly in the browser.',
+    description: 'Remove selected pages like 1,3-5,8 from a PDF and download the result.',
+    mode: 'local',
     render: renderPdfRemovePages,
+  },
+  'pdf-extract-pages': {
+    title: 'Extract PDF Pages',
+    description: 'Choose selected pages from a PDF and export only those pages as a new PDF.',
+    mode: 'local',
+    render: renderPdfExtractPages,
+  },
+  'pdf-to-images': {
+    title: 'PDF to Images',
+    description: 'Render PDF pages to PNG previews and download selected pages as images.',
+    mode: 'local',
+    render: renderPdfToImages,
+  },
+  'eps-convert': {
+    title: 'EPS / PDF / PNG',
+    description: 'Reliable EPS conversion needs a stronger backend or desktop conversion pipeline.',
+    mode: 'advanced',
+    render: renderEPSPlaceholder,
   },
   'pdf-edit': {
     title: 'Edit PDF Text',
-    description: 'This UI explains the recommended production approach. Reliable PDF text editing usually needs a backend service.',
+    description: 'True PDF text editing is an advanced workflow and should use a layout-aware backend.',
+    mode: 'advanced',
     render: renderPdfEditPlaceholder,
   },
   'docx-to-pdf': {
     title: 'DOCX to PDF',
-    description: 'This UI is ready for wiring to a backend conversion service that preserves formatting.',
+    description: 'DOCX to PDF should use a mature converter when formatting needs to survive.',
+    mode: 'advanced',
     render: renderDocxToPdfPlaceholder,
   },
   'pdf-to-docx': {
     title: 'PDF to DOCX',
-    description: 'This UI is ready for a backend service that converts PDFs to editable Word documents.',
+    description: 'PDF to DOCX needs an extraction pipeline or OCR-aware backend for reliable results.',
+    mode: 'advanced',
     render: renderPdfToDocxPlaceholder,
   },
 };
 
-let activeTool = 'image-compress';
+let activeTool = localStorage.getItem('ip:last-tool') || 'image-compress';
 
 initialize();
 
 function initialize() {
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
   toolButtons.forEach((button) => {
     button.addEventListener('click', () => setActiveTool(button.dataset.tool));
   });
+
+  toolSearch.addEventListener('input', () => {
+    const query = toolSearch.value.trim().toLowerCase();
+    toolButtons.forEach((button) => {
+      const label = button.textContent.toLowerCase();
+      button.classList.toggle('is-hidden', query && !label.includes(query));
+    });
+  });
+
+  if (!tools[activeTool]) activeTool = 'image-compress';
   setActiveTool(activeTool);
 }
 
 function setActiveTool(toolId) {
   activeTool = toolId;
+  localStorage.setItem('ip:last-tool', toolId);
+
   toolButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.tool === toolId);
   });
@@ -67,6 +112,8 @@ function setActiveTool(toolId) {
   const tool = tools[toolId];
   toolTitle.textContent = tool.title;
   toolDescription.textContent = tool.description;
+  toolMode.textContent = tool.mode === 'local' ? 'Local browser tool' : 'Advanced tool';
+  toolMode.className = tool.mode === 'local' ? 'badge badge-live' : 'badge';
   setStatus('Ready');
   tool.render();
 }
@@ -83,7 +130,7 @@ function renderImageCompress() {
   toolBody.innerHTML = `
     <div class="panel-grid two-col">
       <div class="panel">
-        <h4>Upload and export</h4>
+        <h4>Upload and compress</h4>
         <div class="field">
           <label for="compress-file">Upload image</label>
           <input id="compress-file" type="file" accept="image/png,image/jpeg,image/webp" />
@@ -99,14 +146,14 @@ function renderImageCompress() {
         <div class="field">
           <label for="compress-quality">Quality: <span id="compress-quality-value">0.82</span></label>
           <input id="compress-quality" type="range" min="0.1" max="1" step="0.01" value="0.82" />
-          <div class="range-hint">Lower quality usually means a smaller file.</div>
         </div>
         <div class="field">
           <label for="compress-width">Maximum width in pixels</label>
           <input id="compress-width" type="number" min="50" step="10" value="1600" />
         </div>
         <div class="button-row">
-          <button id="compress-download" class="primary-btn">Compress and Download</button>
+          <button id="compress-generate" class="secondary-btn">Generate Preview</button>
+          <button id="compress-download" class="primary-btn">Download Output</button>
           <button id="compress-reset" class="ghost-btn">Reset</button>
         </div>
         <div id="compress-meta" class="inline-metrics"></div>
@@ -114,21 +161,23 @@ function renderImageCompress() {
       <div class="preview-panel">
         <h4>Preview</h4>
         <div class="preview-box">
-          <img id="compress-preview" alt="Uploaded preview" hidden />
-          <p id="compress-empty" class="small-note">Upload a PNG, JPEG, or WebP image to preview it here.</p>
+          <img id="compress-preview" alt="Compressed preview" hidden />
+          <p id="compress-empty" class="small-note">Upload a PNG, JPEG, or WebP image to start.</p>
         </div>
       </div>
     </div>
   `;
 
   const fileInput = document.getElementById('compress-file');
+  const formatInput = document.getElementById('compress-format');
   const qualityInput = document.getElementById('compress-quality');
   const qualityValue = document.getElementById('compress-quality-value');
   const widthInput = document.getElementById('compress-width');
-  const formatInput = document.getElementById('compress-format');
+  const meta = document.getElementById('compress-meta');
   const preview = document.getElementById('compress-preview');
   const empty = document.getElementById('compress-empty');
-  const meta = document.getElementById('compress-meta');
+
+  let outputBlob = null;
 
   qualityInput.addEventListener('input', () => {
     qualityValue.textContent = Number(qualityInput.value).toFixed(2);
@@ -137,19 +186,19 @@ function renderImageCompress() {
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    preview.src = url;
+    preview.src = URL.createObjectURL(file);
     preview.hidden = false;
     empty.hidden = true;
-    const img = await loadImageFromFile(file);
+    const image = await loadImageFromFile(file);
     meta.innerHTML = `
       <span class="metric-chip">Original size: ${formatBytes(file.size)}</span>
-      <span class="metric-chip">Dimensions: ${img.width} × ${img.height}</span>
+      <span class="metric-chip">Dimensions: ${image.width} × ${image.height}</span>
     `;
+    outputBlob = null;
     setStatus('Image loaded', 'ok');
   });
 
-  document.getElementById('compress-download').addEventListener('click', async () => {
+  document.getElementById('compress-generate').addEventListener('click', async () => {
     const file = fileInput.files?.[0];
     if (!file) {
       setStatus('Upload an image first', 'warn');
@@ -157,27 +206,36 @@ function renderImageCompress() {
     }
 
     try {
-      setStatus('Compressing image...');
-      const img = await loadImageFromFile(file);
-      const targetWidth = Math.max(1, Number(widthInput.value) || img.width);
-      const scale = Math.min(1, targetWidth / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
+      setStatus('Generating compressed preview...');
+      const image = await loadImageFromFile(file);
       const mime = formatInput.value;
       const quality = Number(qualityInput.value);
-      const blob = await canvasToBlob(canvas, mime, quality);
-      const extension = mimeToExtension(mime);
-      downloadBlob(blob, `${stripExtension(file.name)}-compressed.${extension}`);
-      meta.innerHTML += `<span class="metric-chip">Output size: ${formatBytes(blob.size)}</span>`;
-      setStatus('Compressed image downloaded', 'ok');
+      const maxWidth = Math.max(1, Number(widthInput.value) || image.width);
+      outputBlob = await rasterTransformFromImage(image, {
+        mime,
+        quality,
+        maxWidth,
+      });
+
+      preview.src = URL.createObjectURL(outputBlob);
+      preview.hidden = false;
+      empty.hidden = true;
+      meta.innerHTML += `<span class="metric-chip">Output size: ${formatBytes(outputBlob.size)}</span>`;
+      setStatus('Compressed preview ready', 'ok');
     } catch (error) {
       console.error(error);
-      setStatus('Compression failed', 'error');
+      setStatus('Could not compress image', 'error');
     }
+  });
+
+  document.getElementById('compress-download').addEventListener('click', async () => {
+    if (!outputBlob) {
+      document.getElementById('compress-generate').click();
+      return;
+    }
+    const file = fileInput.files?.[0];
+    downloadBlob(outputBlob, `${stripExtension(file.name)}-compressed.${mimeToExtension(formatInput.value)}`);
+    setStatus('Compressed image downloaded', 'ok');
   });
 
   document.getElementById('compress-reset').addEventListener('click', () => {
@@ -189,7 +247,7 @@ function renderImageConvert() {
   toolBody.innerHTML = `
     <div class="panel-grid two-col">
       <div class="panel">
-        <h4>Convert image format</h4>
+        <h4>Convert raster image</h4>
         <div class="field">
           <label for="convert-file">Upload image</label>
           <input id="convert-file" type="file" accept="image/png,image/jpeg,image/webp" />
@@ -207,15 +265,15 @@ function renderImageConvert() {
           <input id="convert-quality" type="range" min="0.1" max="1" step="0.01" value="0.92" />
         </div>
         <div class="button-row">
-          <button id="convert-download" class="primary-btn">Convert and Download</button>
+          <button id="convert-button" class="primary-btn">Convert and Download</button>
         </div>
-        <p class="small-note">This browser tool handles raster images. EPS conversion is handled separately because that needs a backend pipeline.</p>
+        <p class="small-note">This is for raster images only. EPS is separated because it needs a stronger pipeline.</p>
       </div>
       <div class="preview-panel">
         <h4>Preview</h4>
         <div class="preview-box">
           <img id="convert-preview" alt="Conversion preview" hidden />
-          <p id="convert-empty" class="small-note">Preview will appear here after upload.</p>
+          <p id="convert-empty" class="small-note">Preview appears here after upload.</p>
         </div>
       </div>
     </div>
@@ -241,23 +299,21 @@ function renderImageConvert() {
     setStatus('Image loaded', 'ok');
   });
 
-  document.getElementById('convert-download').addEventListener('click', async () => {
+  document.getElementById('convert-button').addEventListener('click', async () => {
     const file = fileInput.files?.[0];
     if (!file) {
       setStatus('Upload an image first', 'warn');
       return;
     }
+
     try {
       setStatus('Converting image...');
-      const img = await loadImageFromFile(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      const mime = formatInput.value;
-      const quality = Number(qualityInput.value);
-      const blob = await canvasToBlob(canvas, mime, quality);
-      downloadBlob(blob, `${stripExtension(file.name)}.${mimeToExtension(mime)}`);
+      const image = await loadImageFromFile(file);
+      const outputBlob = await rasterTransformFromImage(image, {
+        mime: formatInput.value,
+        quality: Number(qualityInput.value),
+      });
+      downloadBlob(outputBlob, `${stripExtension(file.name)}.${mimeToExtension(formatInput.value)}`);
       setStatus('Converted image downloaded', 'ok');
     } catch (error) {
       console.error(error);
@@ -280,10 +336,11 @@ function renderImageEdit() {
           <input id="edit-brightness" type="range" min="50" max="160" step="1" value="100" />
         </div>
         <div class="field">
-          <label>
-            <input id="edit-grayscale" type="checkbox" />
-            Apply grayscale
-          </label>
+          <label for="edit-contrast">Contrast: <span id="edit-contrast-value">100%</span></label>
+          <input id="edit-contrast" type="range" min="50" max="180" step="1" value="100" />
+        </div>
+        <div class="field">
+          <label><input id="edit-grayscale" type="checkbox" /> Apply grayscale</label>
         </div>
         <div class="action-grid">
           <button id="rotate-left" class="secondary-btn">Rotate Left</button>
@@ -292,7 +349,6 @@ function renderImageEdit() {
           <button id="edit-reset" class="ghost-btn">Reset</button>
           <button id="edit-download" class="primary-btn">Download Edited Image</button>
         </div>
-        <p class="small-note">This is a lightweight editor. More advanced editing can be layered on later.</p>
       </div>
       <div class="preview-panel">
         <h4>Canvas preview</h4>
@@ -306,6 +362,8 @@ function renderImageEdit() {
   const fileInput = document.getElementById('edit-file');
   const brightness = document.getElementById('edit-brightness');
   const brightnessValue = document.getElementById('edit-brightness-value');
+  const contrast = document.getElementById('edit-contrast');
+  const contrastValue = document.getElementById('edit-contrast-value');
   const grayscale = document.getElementById('edit-grayscale');
   const canvas = document.getElementById('edit-canvas');
   const ctx = canvas.getContext('2d');
@@ -315,6 +373,7 @@ function renderImageEdit() {
     rotation: 0,
     flipX: false,
     brightness: 100,
+    contrast: 100,
     grayscale: false,
   };
 
@@ -322,9 +381,12 @@ function renderImageEdit() {
     state.rotation = 0;
     state.flipX = false;
     state.brightness = 100;
+    state.contrast = 100;
     state.grayscale = false;
     brightness.value = '100';
     brightnessValue.textContent = '100%';
+    contrast.value = '100';
+    contrastValue.textContent = '100%';
     grayscale.checked = false;
   }
 
@@ -346,7 +408,7 @@ function renderImageEdit() {
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate((state.rotation * Math.PI) / 180);
     ctx.scale(state.flipX ? -1 : 1, 1);
-    ctx.filter = `${state.grayscale ? 'grayscale(100%)' : 'grayscale(0%)'} brightness(${state.brightness}%)`;
+    ctx.filter = `${state.grayscale ? 'grayscale(100%)' : 'grayscale(0%)'} brightness(${state.brightness}%) contrast(${state.contrast}%)`;
     ctx.drawImage(state.image, -state.image.width / 2, -state.image.height / 2);
     ctx.restore();
   }
@@ -363,6 +425,12 @@ function renderImageEdit() {
   brightness.addEventListener('input', () => {
     state.brightness = Number(brightness.value);
     brightnessValue.textContent = `${state.brightness}%`;
+    renderCanvas();
+  });
+
+  contrast.addEventListener('input', () => {
+    state.contrast = Number(contrast.value);
+    contrastValue.textContent = `${state.contrast}%`;
     renderCanvas();
   });
 
@@ -404,31 +472,93 @@ function renderImageEdit() {
   renderCanvas();
 }
 
-function renderEPSPlaceholder() {
+function renderImagesToPdf() {
   toolBody.innerHTML = `
-    <div class="placeholder-box">
-      <h4>EPS conversion needs backend support</h4>
-      <p>
-        EPS is not handled the same way as PNG or JPEG. Browser-only conversion is usually unreliable.
-      </p>
-      <div class="note-box">
-        <h4>Recommended production stack</h4>
-        <p>Use Ghostscript on the server for:</p>
-        <ul>
-          <li>EPS → PDF</li>
-          <li>EPS → PNG</li>
-          <li>PDF → PNG</li>
-          <li>PDF → EPS when required</li>
-        </ul>
+    <div class="panel-grid two-col">
+      <div class="panel">
+        <h4>Convert images to one PDF</h4>
+        <div class="field">
+          <label for="images-pdf-files">Upload one or more images</label>
+          <input id="images-pdf-files" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+        </div>
+        <div class="field">
+          <label for="images-pdf-margin">Page margin (points)</label>
+          <input id="images-pdf-margin" type="number" min="0" step="2" value="20" />
+        </div>
+        <div class="button-row">
+          <button id="images-pdf-generate" class="primary-btn">Create PDF and Download</button>
+        </div>
+        <div id="images-pdf-meta" class="inline-metrics"></div>
       </div>
-      <div class="field">
-        <label for="eps-placeholder">Planned upload field</label>
-        <input id="eps-placeholder" type="file" accept=".eps,.pdf,.png,.jpg,.jpeg,.webp" disabled />
+      <div class="preview-panel">
+        <h4>Queued images</h4>
+        <div id="images-pdf-preview" class="thumbs-grid">
+          <p class="small-note">Image thumbnails will appear here after upload.</p>
+        </div>
       </div>
-      <button class="ghost-btn" disabled>Backend hook required</button>
     </div>
   `;
-  setStatus('Backend required', 'warn');
+
+  const fileInput = document.getElementById('images-pdf-files');
+  const marginInput = document.getElementById('images-pdf-margin');
+  const preview = document.getElementById('images-pdf-preview');
+  const meta = document.getElementById('images-pdf-meta');
+
+  fileInput.addEventListener('change', () => {
+    const files = [...(fileInput.files || [])];
+    if (!files.length) return;
+
+    preview.innerHTML = files.map((file, index) => `
+      <div class="thumb-card">
+        <img src="${URL.createObjectURL(file)}" alt="Uploaded image ${index + 1}" />
+        <div class="page-tag">${file.name}</div>
+      </div>
+    `).join('');
+
+    meta.innerHTML = `
+      <span class="metric-chip">Images: ${files.length}</span>
+      <span class="metric-chip">Total size: ${formatBytes(files.reduce((sum, file) => sum + file.size, 0))}</span>
+    `;
+    setStatus('Images queued', 'ok');
+  });
+
+  document.getElementById('images-pdf-generate').addEventListener('click', async () => {
+    const files = [...(fileInput.files || [])];
+    if (!files.length) {
+      setStatus('Upload at least one image', 'warn');
+      return;
+    }
+
+    try {
+      setStatus('Building PDF...');
+      const margin = Math.max(0, Number(marginInput.value) || 0);
+      const pdfDoc = await PDFLib.PDFDocument.create();
+
+      for (const file of files) {
+        const image = await loadImageFromFile(file);
+        const jpegBlob = await rasterTransformFromImage(image, {
+          mime: 'image/jpeg',
+          quality: 0.92,
+        });
+        const imageBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+        const embedded = await pdfDoc.embedJpg(imageBytes);
+        const page = pdfDoc.addPage([embedded.width + margin * 2, embedded.height + margin * 2]);
+        page.drawImage(embedded, {
+          x: margin,
+          y: margin,
+          width: embedded.width,
+          height: embedded.height,
+        });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      downloadBlob(new Blob([pdfBytes], { type: 'application/pdf' }), 'images-to-pdf.pdf');
+      setStatus('PDF downloaded', 'ok');
+    } catch (error) {
+      console.error(error);
+      setStatus('Could not create PDF', 'error');
+    }
+  });
 }
 
 function renderPdfRemovePages() {
@@ -437,35 +567,75 @@ function renderPdfRemovePages() {
       <div class="panel">
         <h4>Remove pages from PDF</h4>
         <div class="field">
-          <label for="pdf-file">Upload PDF</label>
-          <input id="pdf-file" type="file" accept="application/pdf" />
+          <label for="pdf-remove-file">Upload PDF</label>
+          <input id="pdf-remove-file" type="file" accept="application/pdf" />
         </div>
         <div class="field">
-          <label for="pdf-pages">Pages to remove</label>
-          <input id="pdf-pages" type="text" placeholder="Example: 1,3-5,8" />
-          <div class="range-hint">Use one-based page numbers.</div>
+          <label for="pdf-remove-pages">Pages to remove</label>
+          <input id="pdf-remove-pages" type="text" placeholder="Example: 1,3-5,8" />
+          <div class="range-hint">Use normal one-based page numbers.</div>
         </div>
         <div class="button-row">
           <button id="pdf-remove-button" class="warning-btn">Remove Pages and Download</button>
         </div>
-        <div id="pdf-meta" class="inline-metrics"></div>
+        <div id="pdf-remove-meta" class="inline-metrics"></div>
       </div>
       <div class="note-box">
-        <h4>How it works</h4>
-        <p>
-          This removes selected pages client-side in your browser using PDF-Lib.
-          It does not upload the PDF anywhere from this static frontend.
-        </p>
-        <p>
-          That is helpful for privacy, but it is different from full PDF editing.
-        </p>
+        <h4>Local workflow</h4>
+        <p>This runs in the browser using PDF-Lib and does not need an external server for standard PDFs.</p>
       </div>
     </div>
   `;
 
-  const fileInput = document.getElementById('pdf-file');
-  const pagesInput = document.getElementById('pdf-pages');
-  const meta = document.getElementById('pdf-meta');
+  setupPdfSelectionTool({
+    fileInputId: 'pdf-remove-file',
+    selectionInputId: 'pdf-remove-pages',
+    actionButtonId: 'pdf-remove-button',
+    metaId: 'pdf-remove-meta',
+    mode: 'remove',
+  });
+}
+
+function renderPdfExtractPages() {
+  toolBody.innerHTML = `
+    <div class="panel-grid two-col">
+      <div class="panel">
+        <h4>Extract selected pages</h4>
+        <div class="field">
+          <label for="pdf-extract-file">Upload PDF</label>
+          <input id="pdf-extract-file" type="file" accept="application/pdf" />
+        </div>
+        <div class="field">
+          <label for="pdf-extract-pages">Pages to extract</label>
+          <input id="pdf-extract-pages" type="text" placeholder="Example: 1,3-5,8" />
+          <div class="range-hint">Use normal one-based page numbers.</div>
+        </div>
+        <div class="button-row">
+          <button id="pdf-extract-button" class="primary-btn">Extract Pages and Download</button>
+        </div>
+        <div id="pdf-extract-meta" class="inline-metrics"></div>
+      </div>
+      <div class="note-box">
+        <h4>Use case</h4>
+        <p>This is helpful when someone only wants a few pages from a larger document without opening desktop software.</p>
+      </div>
+    </div>
+  `;
+
+  setupPdfSelectionTool({
+    fileInputId: 'pdf-extract-file',
+    selectionInputId: 'pdf-extract-pages',
+    actionButtonId: 'pdf-extract-button',
+    metaId: 'pdf-extract-meta',
+    mode: 'extract',
+  });
+}
+
+function setupPdfSelectionTool({ fileInputId, selectionInputId, actionButtonId, metaId, mode }) {
+  const fileInput = document.getElementById(fileInputId);
+  const selectionInput = document.getElementById(selectionInputId);
+  const meta = document.getElementById(metaId);
+
   let pdfBuffer = null;
   let pageCount = 0;
 
@@ -483,7 +653,7 @@ function renderPdfRemovePages() {
     setStatus('PDF loaded', 'ok');
   });
 
-  document.getElementById('pdf-remove-button').addEventListener('click', async () => {
+  document.getElementById(actionButtonId).addEventListener('click', async () => {
     const file = fileInput.files?.[0];
     if (!file || !pdfBuffer) {
       setStatus('Upload a PDF first', 'warn');
@@ -491,28 +661,34 @@ function renderPdfRemovePages() {
     }
 
     try {
-      const pagesToRemove = parsePageSelection(pagesInput.value, pageCount);
-      if (pagesToRemove.size === 0) {
-        setStatus('No pages selected to remove', 'warn');
-        return;
-      }
-      if (pagesToRemove.size >= pageCount) {
-        setStatus('You cannot remove every page', 'warn');
+      const selectedPages = parsePageSelection(selectionInput.value, pageCount);
+      if (selectedPages.size === 0) {
+        setStatus(`No pages selected to ${mode}`, 'warn');
         return;
       }
 
-      setStatus('Removing pages...');
+      setStatus(mode === 'remove' ? 'Removing pages...' : 'Extracting pages...');
       const sourcePdf = await PDFLib.PDFDocument.load(pdfBuffer);
       const outputPdf = await PDFLib.PDFDocument.create();
-      const keepIndices = [];
+
+      const pageIndices = [];
       for (let i = 0; i < pageCount; i += 1) {
-        if (!pagesToRemove.has(i + 1)) keepIndices.push(i);
+        const pageNumber = i + 1;
+        if (mode === 'remove' && !selectedPages.has(pageNumber)) pageIndices.push(i);
+        if (mode === 'extract' && selectedPages.has(pageNumber)) pageIndices.push(i);
       }
 
-      const copiedPages = await outputPdf.copyPages(sourcePdf, keepIndices);
+      if (!pageIndices.length) {
+        setStatus(mode === 'remove' ? 'You cannot remove every page' : 'No pages available after selection', 'warn');
+        return;
+      }
+
+      const copiedPages = await outputPdf.copyPages(sourcePdf, pageIndices);
       copiedPages.forEach((page) => outputPdf.addPage(page));
+
       const bytes = await outputPdf.save();
-      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `${stripExtension(file.name)}-pages-removed.pdf`);
+      const suffix = mode === 'remove' ? 'pages-removed' : 'extracted-pages';
+      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `${stripExtension(file.name)}-${suffix}.pdf`);
       setStatus('Updated PDF downloaded', 'ok');
     } catch (error) {
       console.error(error);
@@ -521,65 +697,200 @@ function renderPdfRemovePages() {
   });
 }
 
+function renderPdfToImages() {
+  toolBody.innerHTML = `
+    <div class="panel-grid two-col">
+      <div class="panel">
+        <h4>Render PDF pages to PNG</h4>
+        <div class="field">
+          <label for="pdf-images-file">Upload PDF</label>
+          <input id="pdf-images-file" type="file" accept="application/pdf" />
+        </div>
+        <div class="field">
+          <label for="pdf-images-pages">Pages to render</label>
+          <input id="pdf-images-pages" type="text" placeholder="Leave blank for all pages, or use 1,3-5" />
+        </div>
+        <div class="field">
+          <label for="pdf-images-scale">Render scale</label>
+          <input id="pdf-images-scale" type="number" min="0.5" step="0.25" value="1.5" />
+        </div>
+        <div class="button-row">
+          <button id="pdf-images-render" class="secondary-btn">Render Pages</button>
+          <button id="pdf-images-zip" class="primary-btn">Download All as ZIP</button>
+        </div>
+        <div id="pdf-images-meta" class="inline-metrics"></div>
+      </div>
+      <div class="preview-panel">
+        <h4>Rendered pages</h4>
+        <div id="pdf-images-output" class="rendered-pages">
+          <p class="small-note">Rendered pages will appear here after processing.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const fileInput = document.getElementById('pdf-images-file');
+  const pagesInput = document.getElementById('pdf-images-pages');
+  const scaleInput = document.getElementById('pdf-images-scale');
+  const output = document.getElementById('pdf-images-output');
+  const meta = document.getElementById('pdf-images-meta');
+
+  let pdfBytes = null;
+  let pdfPageCount = 0;
+  let renderedPages = [];
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    pdfBytes = new Uint8Array(await file.arrayBuffer());
+    const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+    pdfPageCount = pdf.numPages;
+    renderedPages = [];
+    output.innerHTML = '<p class="small-note">PDF loaded. Click render to generate images.</p>';
+    meta.innerHTML = `
+      <span class="metric-chip">File: ${file.name}</span>
+      <span class="metric-chip">Pages: ${pdfPageCount}</span>
+      <span class="metric-chip">Size: ${formatBytes(file.size)}</span>
+    `;
+    setStatus('PDF ready for rendering', 'ok');
+  });
+
+  document.getElementById('pdf-images-render').addEventListener('click', async () => {
+    if (!pdfBytes) {
+      setStatus('Upload a PDF first', 'warn');
+      return;
+    }
+
+    try {
+      setStatus('Rendering PDF pages...');
+      const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      const selectedPages = pagesInput.value.trim()
+        ? [...parsePageSelection(pagesInput.value, pdfPageCount)].sort((a, b) => a - b)
+        : Array.from({ length: pdfPageCount }, (_, index) => index + 1);
+
+      const scale = Math.max(0.5, Number(scaleInput.value) || 1.5);
+      renderedPages = [];
+      output.innerHTML = '';
+
+      for (const pageNumber of selectedPages) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        await page.render({
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        const blob = await canvasToBlob(canvas, 'image/png', 1);
+        renderedPages.push({ pageNumber, blob });
+
+        const card = document.createElement('div');
+        card.className = 'rendered-page';
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = canvas.height;
+        pageCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+        const actions = document.createElement('div');
+        actions.className = 'rendered-page-actions';
+        actions.innerHTML = `
+          <span class="page-tag">Page ${pageNumber}</span>
+          <button class="ghost-btn" data-page="${pageNumber}">Download PNG</button>
+        `;
+
+        actions.querySelector('button').addEventListener('click', () => {
+          downloadBlob(blob, `page-${pageNumber}.png`);
+        });
+
+        card.appendChild(pageCanvas);
+        card.appendChild(actions);
+        output.appendChild(card);
+      }
+
+      if (!renderedPages.length) {
+        output.innerHTML = '<p class="small-note">No pages were rendered.</p>';
+      }
+
+      setStatus('Rendered pages ready', 'ok');
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || 'PDF rendering failed', 'error');
+    }
+  });
+
+  document.getElementById('pdf-images-zip').addEventListener('click', async () => {
+    if (!renderedPages.length) {
+      setStatus('Render pages first', 'warn');
+      return;
+    }
+
+    try {
+      setStatus('Building ZIP file...');
+      const zip = new JSZip();
+      renderedPages.forEach(({ pageNumber, blob }) => {
+        zip.file(`page-${pageNumber}.png`, blob);
+      });
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(zipBlob, 'pdf-pages-images.zip');
+      setStatus('ZIP downloaded', 'ok');
+    } catch (error) {
+      console.error(error);
+      setStatus('Could not build ZIP file', 'error');
+    }
+  });
+}
+
+function renderEPSPlaceholder() {
+  toolBody.innerHTML = `
+    <div class="placeholder-box">
+      <h4>EPS conversion is not a simple browser tool</h4>
+      <p>EPS is PostScript-based. Reliable conversion usually needs Ghostscript or a similar pipeline outside the browser.</p>
+      <div class="note-box">
+        <h4>Recommended stack later</h4>
+        <p>Use Ghostscript for EPS to PDF, EPS to PNG, and related conversions when you move beyond the free static mode.</p>
+      </div>
+    </div>
+  `;
+  setStatus('Advanced workflow', 'warn');
+}
+
 function renderPdfEditPlaceholder() {
   toolBody.innerHTML = `
     <div class="placeholder-box">
-      <h4>Reliable PDF text editing needs a stronger pipeline</h4>
-      <p>
-        PDFs are layout instructions, not always clean editable documents. A production system usually needs a backend service for stable results.
-      </p>
+      <h4>Real PDF text editing stays advanced</h4>
+      <p>PDFs are layout instructions, not simple editable text files. Production-grade editing needs a layout-aware service.</p>
       <div class="note-box">
-        <h4>Recommended production approach</h4>
-        <p>
-          Extract text blocks, preserve coordinates, and write the edited content back with a controlled layout engine. For scanned PDFs, add OCR before editing.
-        </p>
+        <h4>What a serious version needs</h4>
+        <p>Text extraction, coordinate preservation, optional OCR for scanned PDFs, and controlled reflow or redrawing.</p>
       </div>
-      <div class="field">
-        <label for="pdf-edit-upload">Planned PDF upload</label>
-        <input id="pdf-edit-upload" type="file" accept="application/pdf" disabled />
-      </div>
-      <div class="field">
-        <label for="pdf-edit-text">Planned find-and-replace text box</label>
-        <textarea id="pdf-edit-text" placeholder="This will be wired to a backend editor" disabled></textarea>
-      </div>
-      <button class="ghost-btn" disabled>Needs backend PDF editor</button>
     </div>
   `;
-  setStatus('Backend required', 'warn');
+  setStatus('Advanced workflow', 'warn');
 }
 
 function renderDocxToPdfPlaceholder() {
   toolBody.innerHTML = `
     <div class="placeholder-box">
-      <h4>DOCX to PDF</h4>
-      <p>
-        This should be done with LibreOffice headless on the backend if you want formatting to stay intact.
-      </p>
-      <div class="field">
-        <label for="docx-upload">Planned DOCX upload</label>
-        <input id="docx-upload" type="file" accept=".doc,.docx" disabled />
-      </div>
-      <button class="ghost-btn" disabled>Connect backend converter</button>
+      <h4>DOCX to PDF is advanced for a reason</h4>
+      <p>When equations, tables, and page breaks matter, use a mature converter such as LibreOffice headless on the backend.</p>
     </div>
   `;
-  setStatus('Backend required', 'warn');
+  setStatus('Advanced workflow', 'warn');
 }
 
 function renderPdfToDocxPlaceholder() {
   toolBody.innerHTML = `
     <div class="placeholder-box">
-      <h4>PDF to DOCX</h4>
-      <p>
-        This should be handled by a dedicated conversion service or OCR-assisted pipeline depending on whether the PDF is digital or scanned.
-      </p>
-      <div class="field">
-        <label for="pdf-docx-upload">Planned PDF upload</label>
-        <input id="pdf-docx-upload" type="file" accept="application/pdf" disabled />
-      </div>
-      <button class="ghost-btn" disabled>Connect backend converter</button>
+      <h4>PDF to DOCX needs extraction logic</h4>
+      <p>Reliable conversion usually needs OCR, structural extraction, and reconstruction of editable paragraphs and tables.</p>
     </div>
   `;
-  setStatus('Backend required', 'warn');
+  setStatus('Advanced workflow', 'warn');
 }
 
 async function loadImageFromFile(file) {
@@ -601,6 +912,16 @@ function readFileAsDataURL(file) {
   });
 }
 
+async function rasterTransformFromImage(image, { mime, quality = 0.92, maxWidth = image.width }) {
+  const scale = Math.min(1, maxWidth / image.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvasToBlob(canvas, mime, quality);
+}
+
 function canvasToBlob(canvas, mime, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -618,7 +939,7 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 function formatBytes(bytes) {
